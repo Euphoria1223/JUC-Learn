@@ -3,91 +3,86 @@ package day01;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
+/**
+ * A 执行完调用B，B执行完调用C，C执行完调用A
+ */
 public class ProducerAndConsumerLock {
     public static void main(String[] args) {
-        Data1 data = new Data1();
-        new Thread(() -> {
-            for (int i = 0; i < 10; i++) {
-                try {
-                    data.increase();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        Data3 data = new Data3();
+        new Thread(()->{
+            for (int i = 0; i <10 ; i++) {
+                data.printA();
             }
-        }, "a").start();
-
-        new Thread(() -> {
-            for (int i = 0; i < 10; i++) {
-                try {
-                    data.decrease();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        },"A").start();
+        new Thread(()->{
+            for (int i = 0; i <10 ; i++) {
+                data.printB();
             }
-        }, "b").start();
-
-        new Thread(() -> {
-            for (int i = 0; i < 10; i++) {
-                try {
-                    data.increase();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        },"B").start();
+        new Thread(()->{
+            for (int i = 0; i <10 ; i++) {
+                data.printC();
             }
-        }, "c").start();
-
-        new Thread(() -> {
-            for (int i = 0; i < 10; i++) {
-                try {
-                    data.decrease();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }, "d").start();
-
+        },"C").start();
     }
 }
-
-class Data1 {
-    private int number = 0;
-    Lock lock = new ReentrantLock();
-    Condition condition = lock.newCondition();
-
-    public void decrease() throws InterruptedException {
+class Data3{ // 资源类 Lock
+    private final Lock lock = new ReentrantLock();
+    private final Condition condition1 = lock.newCondition();
+    private final Condition condition2 = lock.newCondition();
+    private final Condition condition3 = lock.newCondition();
+    private int number = 1; // 1A 2B 3C
+    public void printA(){
         lock.lock();
         try {
-            //如果number==0，则等待
-            while (number == 0) {//将if换成while，避免虚假唤醒，即使被虚假唤醒，也会再次检查条件
-                condition.await();
+// 业务，判断-> 执行-> 通知
+            while (number!=1){
+// 等待
+                condition1.await();
             }
-            number--;
-            System.out.println(Thread.currentThread().getName() + "->" + number);
-            condition.signalAll();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            System.out.println(Thread.currentThread().getName()+"=>AAAAAAA");
+// 唤醒，唤醒指定的人，B
+            number = 2;
+            condition2.signal();
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             lock.unlock();
         }
     }
-
-    public void increase() throws InterruptedException {
+    public void printB(){
         lock.lock();
         try {
-            //如果不等于0，则等待
-            while (number != 0) {//将if换成while，避免虚假唤醒，即使被虚假唤醒，也会再次检查条件
-                condition.await();
+// 业务，判断-> 执行-> 通知
+            while (number!=2){
+                condition2.await();
             }
-            number++;
-            System.out.println(Thread.currentThread().getName() + "->" + number);
-            condition.signalAll();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            System.out.println(Thread.currentThread().getName()+"=>BBBBBBBBB");
+// 唤醒，唤醒指定的人，c
+            number = 3;
+            condition3.signal();
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             lock.unlock();
         }
     }
-
-
+    public void printC(){
+        lock.lock();
+        try {
+// 业务，判断-> 执行-> 通知
+// 业务，判断-> 执行-> 通知
+            while (number!=3){
+                condition3.await();
+            }
+            System.out.println(Thread.currentThread().getName()+"=>BBBBBBBBB");
+// 唤醒，唤醒指定的人，c
+            number = 1;
+            condition1.signal();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
 }
